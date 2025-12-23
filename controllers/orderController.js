@@ -27,6 +27,8 @@ exports.createOrder = async (req, res) => {
     });
 
     await order.save();
+    // Order save hone ke baad, email se pehle ye line add karein:
+const populatedOrder = await Order.findById(order._id).populate('products.productId');
 
     // ✅ Reduce stock for each product
     for (const item of products) {
@@ -49,12 +51,10 @@ exports.createOrder = async (req, res) => {
     // ✅ Send confirmation email
     const user = await User.findById(req.user.id);
     if (user?.email) {
-      const productList = products
-        .map(
-          (item) =>
-            `<li>${item.product?.brand || "Product"} × ${item.quantity}</li>`
-        )
-        .join("");
+      // Phir productList ko aise map karein:
+const productList = populatedOrder.products.map((item) => 
+  `<li>${item.productId?.name || item.productId?.brand || "Product"} × ${item.quantity}</li>`
+).join("");
 
       const emailContent = `
   <div style="font-family: 'Segoe UI', Arial, sans-serif; background:#f4f4f7; padding:30px;">
