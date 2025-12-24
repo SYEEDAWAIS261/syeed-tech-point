@@ -117,7 +117,7 @@ exports.login = async (req, res) => {
 
     // 🚫 Block check
     if (user.isBlocked) {
-      return res.status(403).json({ message: "Your account has been blocked." });
+      return res.status(403).json({ message: "Your account has been blocked by Syeed-Ecommerce Team." });
     }
 
     // 🔍 Password check (skip if Google login user)
