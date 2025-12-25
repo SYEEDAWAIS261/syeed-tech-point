@@ -8,13 +8,16 @@ exports.signup = async (req, res) => {
   try {
     const { username, email, password, isAdmin } = req.body;
 
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: 'User already exists' });
+    // 1. Dono Email aur Username check karein (Duplicate prevention)
+    const existing = await User.findOne({ $or: [{ email }, { username }] });
+    if (existing) {
+      const field = existing.email === email ? 'Email' : 'Username';
+      return res.status(400).json({ message: `${field} already exists` });
+    }
 
     const hashed = await bcrypt.hash(password, 10);
-
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    const expiry = new Date(Date.now() + 15 * 60 * 1000);
 
     const user = new User({
       username,
@@ -28,18 +31,27 @@ exports.signup = async (req, res) => {
 
     await user.save();
 
-    await sendEmail(
-      email,
-      'Verify your Email - Awais E-Commerce',
-      `<h3>Hello ${username},</h3>
-      <p>Your verification code is: <strong>${verificationCode}</strong></p>
-      <p>This code will expire in 15 minutes.</p>`
-    );
+    // 2. Email ko Try-Catch mein rakhein taaki main process fail na ho
+    try {
+      await sendEmail(
+        email,
+        'Verify your Email - Awais E-Commerce',
+        `<h3>Hello ${username},</h3>
+         <p>Your verification code is: <strong>${verificationCode}</strong></p>`
+      );
+    } catch (emailErr) {
+      console.error('Email sending failed:', emailErr);
+      // User ko register hone dein, unhe batayein code resend karein agar nahi mila
+      return res.status(201).json({ 
+        message: 'Account created, but failed to send email. Please click resend code.',
+        email: email 
+      });
+    }
 
     res.status(201).json({ message: 'User registered. Verification code sent to email.' });
   } catch (err) {
     console.error('Signup error:', err);
-    res.status(500).json({ message: 'Server error during signup' });
+    res.status(500).json({ message: 'Server error during signup. Please try again.' });
   }
 };
 
