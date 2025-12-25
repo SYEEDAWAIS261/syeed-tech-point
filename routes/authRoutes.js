@@ -11,8 +11,10 @@ const {
   verifyEmail,
   resendVerificationCode,
   getAllUsers,
-  toggleBlockUser
+  toggleBlockUser,
 } = require('../controllers/authController');
+const { loginLimiter } = require('../middleware/rateLimiter');
+
 
 const authMiddleware = require('../middleware/authMiddleware');
 const admin = require('../middleware/adminMiddleware')
@@ -23,7 +25,7 @@ const User = require('../models/User');
 router.post('/signup', signup);
 router.post('/verify', verifyEmail);
 router.post('/resend', resendVerificationCode);
-router.post('/login', login);
+router.post('/login', loginLimiter, login);
 
 // 🔒 Protected Profile Routes
 router.get('/profile', authMiddleware, getProfile);
@@ -55,8 +57,8 @@ router.put(
 );
 
 // ✅ Admin-only Routes for User Management
-router.get('/all-users', admin, getAllUsers);
-router.put('/block/:id', admin, toggleBlockUser);
+router.get('/all-users', admin, authMiddleware, getAllUsers);
+router.put('/block/:id', admin, authMiddleware, toggleBlockUser);
 
 // 🌐 Google OAuth Routes
 router.get(

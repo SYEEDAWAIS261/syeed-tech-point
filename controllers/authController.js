@@ -6,23 +6,31 @@ const sendEmail = require('../utils/sendEmail');
 // POST /signup
 exports.signup = async (req, res) => {
   try {
-    const { username, email, password, isAdmin } = req.body;
+    let { username, email, password, isAdmin } = req.body;
+
+    email = email.toLowerCase().trim();
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
 
     const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: 'User already exists' });
+    if (existing) {
+      return res.status(400).json({ message: "User already exists" });
+    }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedCode = hashCode(code);
 
     const user = new User({
       username,
       email,
-      password: hashed,
+      password: hashedPassword,
       isAdmin: isAdmin || false,
-      verificationCode,
-      verificationCodeExpires: expiry,
+      verificationCode: hashedCode,
+      verificationCodeExpires: Date.now() + 15 * 60 * 1000,
       isVerified: false,
     });
 
@@ -30,84 +38,113 @@ exports.signup = async (req, res) => {
 
     await sendEmail(
       email,
-      'Verify your Email - Awais E-Commerce',
+      "Verify your Email - Awais E-Commerce",
       `<h3>Hello ${username},</h3>
-      <p>Your verification code is: <strong>${verificationCode}</strong></p>
-      <p>This code will expire in 15 minutes.</p>`
+       <p>Your verification code is:</p>
+       <h2>${code}</h2>
+       <p>This code will expire in 15 minutes.</p>`
     );
 
-    res.status(201).json({ message: 'User registered. Verification code sent to email.' });
+    res.status(201).json({
+      message: "Signup successful. Verification code sent to email.",
+    });
   } catch (err) {
-    console.error('Signup error:', err);
-    res.status(500).json({ message: 'Server error during signup' });
+    console.error("Signup error:", err);
+    res.status(500).json({ message: "Server error during signup" });
   }
 };
 
+
 // POST /verify
 exports.verifyEmail = async (req, res) => {
-  const { email, code } = req.body;
+  let { email, code } = req.body;
+
+  email = email.toLowerCase().trim();
+  const hashedCode = hashCode(code);
 
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    if (user.isVerified) return res.status(400).json({ message: 'Email already verified' });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-    if (user.verificationCode !== code)
-      return res.status(400).json({ message: 'Invalid verification code' });
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Email already verified" });
+    }
 
-    if (user.verificationCodeExpires < Date.now())
-      return res.status(400).json({ message: 'Verification code expired' });
+    if (
+      user.verificationCode !== hashedCode ||
+      user.verificationCodeExpires < Date.now()
+    ) {
+      return res.status(400).json({ message: "Invalid or expired code" });
+    }
 
     user.isVerified = true;
     user.verificationCode = undefined;
     user.verificationCodeExpires = undefined;
+
     await user.save();
 
-    res.json({ message: 'Email verified successfully!' });
+    res.json({ message: "Email verified successfully" });
   } catch (err) {
-    console.error('Verification error:', err);
-    res.status(500).json({ message: 'Server error during verification' });
+    console.error("Verify error:", err);
+    res.status(500).json({ message: "Server error during verification" });
   }
 };
 
 // POST /resend
 exports.resendVerificationCode = async (req, res) => {
-  const { email } = req.body;
+  let { email } = req.body;
+  email = email.toLowerCase().trim();
 
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    if (user.isVerified) {
-      return res.status(400).json({ message: 'Email is already verified' });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const newExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Email already verified" });
+    }
 
-    user.verificationCode = newCode;
-    user.verificationCodeExpires = newExpiry;
+    // ⛔ Prevent spamming (2 min cooldown)
+    if (
+      user.verificationCodeExpires &&
+      user.verificationCodeExpires - Date.now() > 13 * 60 * 1000
+    ) {
+      return res
+        .status(429)
+        .json({ message: "Please wait before requesting a new code" });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    user.verificationCode = hashCode(code);
+    user.verificationCodeExpires = Date.now() + 15 * 60 * 1000;
+
     await user.save();
 
     await sendEmail(
       email,
-      'New Verification Code - Awais E-Commerce',
+      "New Verification Code - Awais E-Commerce",
       `<h3>Hello ${user.username},</h3>
-      <p>Your new verification code is: <strong>${newCode}</strong></p>
-      <p>This code will expire in 15 minutes.</p>`
+       <h2>${code}</h2>
+       <p>This code will expire in 15 minutes.</p>`
     );
 
-    res.json({ message: 'New verification code sent to email.' });
+    res.json({ message: "New verification code sent" });
   } catch (err) {
-    console.error('Resend error:', err);
-    res.status(500).json({ message: 'Server error while resending code' });
+    console.error("Resend error:", err);
+    res.status(500).json({ message: "Server error while resending code" });
   }
 };
 
-// POST /login
+
+/// POST /login
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  let { email, password } = req.body;
+  email = email?.toLowerCase().trim();
 
   try {
     const user = await User.findOne({ email });
@@ -115,46 +152,37 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // 🚫 Block check
+    // 🚫 Blocked account (generic message for security)
     if (user.isBlocked) {
-      return res.status(403).json({ message: "Your account has been blocked by Syeed-Ecommerce Team." });
+      return res.status(403).json({ message: "Access denied" });
     }
 
-    // 🔍 Password check (skip if Google login user)
+    // 🔐 Password validation
     if (user.password) {
       if (!password) {
-        return res.status(400).json({ message: "Password is required" });
-      }
-
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
         return res.status(400).json({ message: "Invalid credentials" });
       }
-    } else {
-      // For Google login users, password should not be checked
-      console.log("Google user login — password check skipped.");
+
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: "Invalid credentials" });
+      }
     }
 
-    // ✅ Email verification check
+    // 📧 Email verification
     if (!user.isVerified) {
-      return res.status(401).json({ message: "Please verify your email before logging in." });
+      return res.status(401).json({ message: "Please verify your email" });
     }
 
-    // ✅ Update user status
+    // 🟢 Update activity
     user.isLoggedIn = true;
     user.isOnline = true;
     user.lastSeen = new Date();
     await user.save();
 
-    // 🔔 Emit socket event if needed
-    // const io = req.app.get("io");
-    // if (io) {
-    //   io.emit("userStatusChange", { userId: user._id, isOnline: true });
-    // }
-
-    // 🎟 Generate JWT token
+    // 🎟 JWT
     const token = jwt.sign(
-      { id: user._id, isAdmin: user.isAdmin },
+      { id: user._id },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -166,16 +194,14 @@ exports.login = async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
-        isAdmin: user.isAdmin,
-        isOnline: user.isOnline,
+        isAdmin: user.isAdmin, // frontend convenience only
       },
     });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ message: "Server error during login" });
+    res.status(500).json({ message: "Server error" });
   }
 };
-
 
 
 exports.logout = async (req, res) => {
