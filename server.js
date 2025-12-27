@@ -55,6 +55,7 @@ app.use('/api/subscribers', subscriberRoutes);
 app.use('/api/unsubscribe', unsubscribeRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use('/api/cms', require('./routes/cmsRoutes'));
 // ⚙️ Global Error Handler (optional, but useful)
 app.use((err, req, res, next) => {
   console.error('🔥 Server Error:', err.stack);
