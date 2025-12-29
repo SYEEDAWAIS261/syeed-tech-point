@@ -82,6 +82,11 @@ exports.addProduct = async (req, res) => {
      Unsubscribe
   </a> anytime.
 </small>
+<!-- Footer -->
+    <p style="text-align:center; font-size:12px; color:#a0aec0; margin-top:15px;">
+      © ${new Date().getFullYear()} Syeed E-commerce. All rights reserved.<br />
+      You are receiving this email because you made a purchase at our store.
+    </p>
 
       </div>
     `,

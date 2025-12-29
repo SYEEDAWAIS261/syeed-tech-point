@@ -35,6 +35,11 @@ const notifySubscribers = async (product) => {
             style="background:#007bff;color:white;padding:10px 15px;border-radius:5px;text-decoration:none;">
             View Product
           </a>
+          <!-- Footer -->
+    <p style="text-align:center; font-size:12px; color:#a0aec0; margin-top:15px;">
+      © ${new Date().getFullYear()} Syeed E-commerce. All rights reserved.<br />
+      You are receiving this email because you made a purchase at our store.
+    </p>
         </div>
       `,
     };
