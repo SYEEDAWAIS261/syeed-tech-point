@@ -45,65 +45,62 @@ exports.addProduct = async (req, res) => {
 
     await product.save();
 
-    // ✅ Notify all subscribers about the new product
+    // 3. Notify Subscribers (Non-blocking way)
     const subscribers = await Subscriber.find();
 
     if (subscribers.length > 0) {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-          user: process.env.SMTP_EMAIL, // Gmail address
-          pass: process.env.SMTP_PASS,  // Gmail App Password
+          user: process.env.SMTP_EMAIL,
+          pass: process.env.SMTP_PASS,
         },
       });
 
-      const productUrl = `https://ai-ecommerce-4a2c6.web.app/${product._id}`; // ⚠️ Replace with your actual frontend URL
+      // Humne yahan 'await' loop ke bahar lagaya hai taake emails background mein chali jayein
+      const emailPromises = subscribers.map((s) => {
+        const mailOptions = {
+          from: `"Syeed E-commerce" <${process.env.SMTP_EMAIL}>`,
+          to: s.email,
+          subject: `🆕 New Product Alert: ${product.name}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
+              <h2 style="color: #2d3748;">New Arrival: ${product.name}</h2>
+              <p><strong>Brand:</strong> ${brand}</p>
+              <p>${description}</p>
+              <p style="font-size: 18px; color: #38a169;"><strong>Price:</strong> $${price}</p>
+              <a href="https://ai-ecommerce-4a2c6.web.app/products/${product._id}" 
+                 style="display:inline-block; padding:12px 20px; background:#007bff; color:#fff; text-decoration:none; border-radius:5px; margin-top: 10px;">
+                 View Details
+              </a>
+              <hr style="margin-top: 20px; border: 0; border-top: 1px solid #eee;" />
+              <p style="font-size: 12px; color: #718096;">
+                Don't want these emails? 
+                <a href="${process.env.BASE_URL}/api/unsubscribe/${s.unsubscribeToken}" style="color: #dc3545;">Unsubscribe here</a>
+              </p>
+            </div>
+          `,
+        };
+        return transporter.sendMail(mailOptions);
+      });
 
-     for (const s of subscribers) {
-  const mailOptions = {
-    from: process.env.SMTP_EMAIL,
-    to: s.email,
-    subject: `🆕 New Product Alert: ${product.name}`,
-    html: `
-      <div style="font-family: Arial; padding: 10px;">
-        <h2>${product.name}</h2>
-        <p><strong>Brand:</strong> ${brand}</p>
-        <p>${description}</p>
-        <p><strong>Price:</strong> $${price}</p>
-        <a href="https://ai-ecommerce-4a2c6.web.app/products/${product._id}" 
-          style="display:inline-block; padding:10px 20px; background:#007bff; color:#fff; text-decoration:none; border-radius:5px;">
-          View Product
-        </a>
-        <br><br>
-       <small>
-  You’re receiving this email because you subscribed to our product updates.<br>
-  <a href="https://ai-ecommerce-4a2c6.web.app/api/unsubscribe/${s.unsubscribeToken}" 
-     style="color:#dc3545;text-decoration:none;">
-     Unsubscribe
-  </a> anytime.
-</small>
-<!-- Footer -->
-    <p style="text-align:center; font-size:12px; color:#a0aec0; margin-top:15px;">
-      © ${new Date().getFullYear()} Syeed E-commerce. All rights reserved.<br />
-      You are receiving this email because you made a purchase at our store.
-    </p>
-
-      </div>
-    `,
-  };
-
-  await transporter.sendMail(mailOptions);
-}
-
-console.log(`✅ Notification email sent to ${subscribers.length} subscribers`);
+      // Emails ko background mein bhej dein, product add hone se mat rokein
+      Promise.all(emailPromises)
+        .then(() => console.log(`✅ Emails sent to ${subscribers.length} users`))
+        .catch((e) => console.error("📧 Email sending failed:", e.message));
     }
-    res.json(product);
+
+    // 4. Send Response Immediately
+    res.status(201).json(product);
+
   } catch (err) {
-    console.error('Failed to add product:', err);
-    res.status(500).json({ message: 'Failed to add product', error: err.message });
+    console.error('❌ Failed to add product:', err);
+    res.status(500).json({ 
+      message: 'Failed to add product', 
+      error: err.message 
+    });
   }
 };
-
 // ✅ GET PRODUCT BY ID
 exports.getProductById = async (req, res) => {
   try {
