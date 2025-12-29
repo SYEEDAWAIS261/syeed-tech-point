@@ -38,7 +38,7 @@ app.use(passport.initialize());
 require('./config/passport');
 
 // Static uploads (⚠️ see note below)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
