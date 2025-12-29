@@ -1,35 +1,42 @@
-const multer = require("multer");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
-const cloudinary = require("../config/cloudinary");
+const fs = require('fs');
+const multer = require('multer');
+const path = require('path');
 
-// Cloudinary storage config
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: (req, file) => {
-    let folder = "others";
+// Helper to ensure a folder exists
+const ensureDir = (dirPath) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+};
 
-    // Profile images
-    if (req.baseUrl.includes("auth") || req.originalUrl.includes("profile")) {
-      folder = "profile";
+// Choose destination dynamically based on route
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    let folder = 'uploads';
+
+    // If uploading profile image
+    if (req.baseUrl.includes('auth') || req.url.includes('profile')) {
+      folder = 'uploads/profile';
+    } else if (req.baseUrl.includes('product')) {
+      folder = 'uploads/products';
     }
-    // Product images
-    else if (req.baseUrl.includes("product")) {
-      folder = "products";
-    }
 
-    return {
-      folder: folder,
-      allowed_formats: ["jpg", "jpeg", "png", "webp"],
-      transformation: [{ quality: "auto", fetch_format: "auto" }],
-    };
+    const fullPath = path.join(__dirname, '..', folder);
+    ensureDir(fullPath);
+    cb(null, fullPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${Date.now()}-${file.originalname}`;
+    cb(null, uniqueName);
   },
 });
 
-// File filter
+// Optional: filter to accept only image types
 const fileFilter = (req, file, cb) => {
-  const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-  if (!allowed.includes(file.mimetype)) {
-    return cb(new Error("Only image files are allowed"), false);
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+  if (!allowed.includes(ext)) {
+    return cb(new Error('Only image files are allowed'), false);
   }
   cb(null, true);
 };
@@ -38,7 +45,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
 });
 
 module.exports = upload;
