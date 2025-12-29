@@ -27,6 +27,7 @@ const subscriberRoutes = require('./routes/subscriberRoutes');
 const unsubscribeRoutes = require('./routes/unsubscribeRoutes');
 const couponRoutes = require('./routes/coupons');
 const reviewRoutes = require('./routes/reviewRoutes')
+const cmsRoutes = require('./routes/cmsRoutes'); // adjust path if needed
 
 require('./config/passport'); // Google strategy
 
@@ -55,6 +56,8 @@ app.use('/api/subscribers', subscriberRoutes);
 app.use('/api/unsubscribe', unsubscribeRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use('/api/cms', cmsRoutes);
+
 // ⚙️ Global Error Handler (optional, but useful)
 app.use((err, req, res, next) => {
   console.error('🔥 Server Error:', err.stack);
