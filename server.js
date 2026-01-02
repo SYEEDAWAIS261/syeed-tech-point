@@ -28,7 +28,7 @@ const unsubscribeRoutes = require('./routes/unsubscribeRoutes');
 const couponRoutes = require('./routes/coupons');
 const reviewRoutes = require('./routes/reviewRoutes')
 const cmsRoutes = require('./routes/cmsRoutes'); 
-const chatRoutes = require('./routes/chatRoutes');
+const chatRoutes = require ("./routes/chatRoutes.js");
 require('./config/passport'); // Google strategy
 
 // Initialize app
@@ -36,15 +36,28 @@ const app = express();
 const server = http.createServer(app);
 
 // Middleware
+// Middleware
 app.use(cors({
-  origin: [
-    "http://localhost:5173", 
-    "http://localhost:5174", // ✅ Yeh wala port add karein jo aap use kar rahe hain
-    "https://ai-ecommerce-4a2c6.web.app"
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      "http://localhost:5173", 
+      "http://localhost:5174", 
+      "https://ai-ecommerce-4a2c6.web.app"
+    ];
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// OPTIONS request ko explicitly handle karein (Vercel ke liye zaroori hai)
+app.options('*', cors());
 app.use(express.json());
 app.use(passport.initialize());
 
