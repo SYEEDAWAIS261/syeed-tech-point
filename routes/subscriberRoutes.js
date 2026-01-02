@@ -68,12 +68,18 @@ router.post('/subscribe', async (req, res) => {
     `;
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.SMTP_EMAIL,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+  host: 'smtp.gmail.com',
+  port: 465, // SSL ke liye 465 best hai
+  secure: true, // Port 465 ke liye true rakhein
+  auth: {
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASS, // ✅ Ensure ye 16-digit "App Password" hai
+  },
+  tls: {
+    // Localhost par certificate errors se bachne ke liye
+    rejectUnauthorized: false
+  }
+});
 
     await transporter.sendMail({
       from: `"Syeed E-commerce" <${process.env.SMTP_EMAIL}>`,

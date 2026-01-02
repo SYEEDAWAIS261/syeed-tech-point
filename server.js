@@ -27,8 +27,8 @@ const subscriberRoutes = require('./routes/subscriberRoutes');
 const unsubscribeRoutes = require('./routes/unsubscribeRoutes');
 const couponRoutes = require('./routes/coupons');
 const reviewRoutes = require('./routes/reviewRoutes')
-// const cmsRoutes = require('./routes/cmsRoutes'); 
-
+const cmsRoutes = require('./routes/cmsRoutes'); 
+const chatRoutes = require('./routes/chatRoutes');
 require('./config/passport'); // Google strategy
 
 // Initialize app
@@ -36,7 +36,15 @@ const app = express();
 const server = http.createServer(app);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:5173", 
+    "http://localhost:5174", // ✅ Yeh wala port add karein jo aap use kar rahe hain
+    "https://ai-ecommerce-4a2c6.web.app"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
 app.use(express.json());
 app.use(passport.initialize());
 
@@ -56,7 +64,8 @@ app.use('/api/subscribers', subscriberRoutes);
 app.use('/api/unsubscribe', unsubscribeRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use("/api/reviews", reviewRoutes);
-
+app.use('/api/cms', cmsRoutes);
+app.use("/api/chat", chatRoutes);
 // ⚙️ Global Error Handler (optional, but useful)
 app.use((err, req, res, next) => {
   console.error('🔥 Server Error:', err.stack);

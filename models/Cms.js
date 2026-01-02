@@ -1,16 +1,16 @@
-// const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 
-// const cmsSchema = new mongoose.Schema({
-//     pageName: { type: String, default: 'home' }, // Future mein baqi pages ke liye bhi kaam ayega
-//     // ✅ NEW FIELD
-//     heroImage: { type: String },
-//     heroTitle: { type: String, required: true },
-//     heroDescription: { type: String, required: true },
-//     seoFooterTitle: { type: String, required: true },
-//     seoFooterDescription: {
-//   type: String,
-//   required: true
-// }
-// }, { timestamps: true });
+const cmsSchema = new mongoose.Schema({
+    pageName: { type: String, default: 'home' }, // Future mein baqi pages ke liye bhi kaam ayega
+    // ✅ NEW FIELD
+    heroImage: { type: String },
+    heroTitle: { type: String, required: true },
+    heroDescription: { type: String, required: true },
+    seoFooterTitle: { type: String, required: true },
+    seoFooterDescription: {
+  type: String,
+  required: true
+}
+}, { timestamps: true });
 
-// module.exports = mongoose.model('Cms', cmsSchema);
+module.exports = mongoose.model('Cms', cmsSchema);
