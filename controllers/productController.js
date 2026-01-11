@@ -46,11 +46,6 @@ exports.addProduct = async (req, res) => {
 
     await product.save();
 
-    const backendUrl = process.env.BASE_URL || "https://syeed-ecommerce-backend.koyeb.app";
-    const fullImageUrl = product.image 
-      ? `${backendUrl}${product.image}` 
-      : `https://via.placeholder.com/600x400?text=${name}`;
-
     // 3. Notify Subscribers (Non-blocking way)
     const subscribers = await Subscriber.find();
 
@@ -70,62 +65,22 @@ exports.addProduct = async (req, res) => {
           to: s.email,
           subject: `🆕 New Product Alert: ${product.name}`,
           html: `
-<div style="background-color: #f8f9fa; padding: 40px 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid #e1e4e8;">
-    
-    <div style="background-color: #007bff; padding: 20px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Syeed Tech Point</h1>
-    </div>
-
-    <div style="padding: 30px;">
-    <div style="margin-bottom: 25px; text-align: center;">
-        <img src="${fullImageUrl}" 
-             alt="${product.name}" 
-             style="width: 100%; max-width: 540px; height: auto; border-radius: 12px; display: block; margin: 0 auto;" 
-        />
-      </div>
-      <span style="display: inline-block; padding: 4px 12px; background: #e3f2fd; color: #0d6efd; border-radius: 50px; font-size: 12px; font-weight: bold; margin-bottom: 15px; text-uppercase;">New Arrival</span>
-      
-      <h2 style="color: #1a202c; margin-top: 0; margin-bottom: 10px; font-size: 22px;">${product.name}</h2>
-      
-      <p style="color: #4a5568; line-height: 1.6; margin-bottom: 20px;">
-        ${description.substring(0, 150)}...
-      </p>
-
-      <div style="background: #fdfdfd; border: 1px dashed #cbd5e0; border-radius: 8px; padding: 15px; margin-bottom: 25px;">
-        <table width="100%">
-          <tr>
-            <td><strong style="color: #718096;">Brand:</strong></td>
-            <td style="text-align: right; color: #2d3748;">${brand}</td>
-          </tr>
-          <tr>
-            <td><strong style="color: #718096;">Availability:</strong></td>
-            <td style="text-align: right; color: #38a169;">In Stock</td>
-          </tr>
-          <tr>
-            <td style="padding-top: 10px;"><strong style="color: #2d3748; font-size: 20px;">Price:</strong></td>
-            <td style="padding-top: 10px; text-align: right; color: #007bff; font-size: 24px; font-weight: bold;">$${price}</td>
-          </tr>
-        </table>
-      </div>
-
-      <div style="text-align: center;">
-        <a href="https://ai-ecommerce-4a2c6.web.app/products/${product._id}" 
-           style="display: block; padding: 15px 25px; background: #007bff; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(0, 123, 255, 0.2);">
-           View Product Details
-        </a>
-      </div>
-    </div>
-
-    <div style="background-color: #f7fafc; padding: 20px; text-align: center; border-top: 1px solid #edf2f7;">
-      <p style="margin: 0; color: #718096; font-size: 14px;">&copy; 2026 Syeed Tech Point. All rights reserved.</p>
-     <a href="${backendUrl}/api/unsubscribe/${s.unsubscribeToken}" style="color: #e53e3e; text-decoration: underline;">
-  Unsubscribe from these alerts
-</a>
-    </div>
-  </div>
-</div>
-`,
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
+              <h2 style="color: #2d3748;">New Arrival: ${product.name}</h2>
+              <p><strong>Brand:</strong> ${brand}</p>
+              <p>${description}</p>
+              <p style="font-size: 18px; color: #38a169;"><strong>Price:</strong> $${price}</p>
+              <a href="https://ai-ecommerce-4a2c6.web.app/products/${product._id}" 
+                 style="display:inline-block; padding:12px 20px; background:#007bff; color:#fff; text-decoration:none; border-radius:5px; margin-top: 10px;">
+                 View Details
+              </a>
+              <hr style="margin-top: 20px; border: 0; border-top: 1px solid #eee;" />
+              <p style="font-size: 12px; color: #718096;">
+                Don't want these emails? 
+                <a href="${process.env.BASE_URL}/api/unsubscribe/${s.unsubscribeToken}" style="color: #dc3545;">Unsubscribe here</a>
+              </p>
+            </div>
+          `,
         };
         return transporter.sendMail(mailOptions);
       });

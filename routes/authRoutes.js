@@ -73,6 +73,8 @@ router.get(
     scope: ['profile', 'email'],
     prompt: 'select_account',
     state: 'login',
+    // Forcefully redirect_uri yahan specify karein
+    callbackURL: process.env.GOOGLE_CALLBACK_URL 
   })
 );
 
@@ -82,6 +84,19 @@ router.get(
     scope: ['profile', 'email'],
     prompt: 'consent',
     state: 'signup',
+    // Forcefully redirect_uri yahan specify karein
+    callbackURL: process.env.GOOGLE_CALLBACK_URL 
+  })
+);
+
+router.get(
+  '/google/signup',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    prompt: 'consent',
+    state: 'signup',
+    // Forcefully redirect_uri yahan specify karein
+    callbackURL: process.env.GOOGLE_CALLBACK_URL 
   })
 );
 
