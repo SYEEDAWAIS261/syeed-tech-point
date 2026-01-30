@@ -61,7 +61,7 @@ router.put(
 
       // ✅ If image uploaded
       if (req.file) {
-        updateData.heroImage = `/uploads/cms/${req.file.filename}`;
+        updateData.heroImage = `uploads/cms/${req.file.filename}`;
       }
 
       const updatedContent = await Cms.findOneAndUpdate(

@@ -70,7 +70,7 @@ exports.addProduct = async (req, res) => {
               <p><strong>Brand:</strong> ${brand}</p>
               <p>${description}</p>
               <p style="font-size: 18px; color: #38a169;"><strong>Price:</strong> $${price}</p>
-              <a href="https://ai-ecommerce-4a2c6.web.app/products/${product._id}" 
+              <a href="http://localhost:5173/products/${product._id}" 
                  style="display:inline-block; padding:12px 20px; background:#007bff; color:#fff; text-decoration:none; border-radius:5px; margin-top: 10px;">
                  View Details
               </a>

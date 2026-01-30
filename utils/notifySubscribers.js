@@ -61,7 +61,7 @@ const notifySubscribers = async (product) => {
 
             <p style="font-size:14px; color:#718096; margin-top:40px; border-top:1px solid #edf2f7; padding-top:20px;">
               Happy Shopping,<br/>
-              <strong>Syeed E-commerce Team</strong>
+              <strong>Syeed Tech Point Team</strong>
             </p>
           </div>
 
