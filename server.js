@@ -37,14 +37,26 @@ const app = express();
 const server = http.createServer(app);
 
 // 2. Middleware
+// 2. Middleware
+const allowedOrigins = [
+  "http://localhost:5173", 
+  "http://localhost:5174",
+  process.env.FRONTEND_URL
+].filter(Boolean); // Yeh line 'undefined' values ko nikal degi
+
 app.use(cors({
-  origin: [
-    "http://localhost:5173", 
-    "http://localhost:5174",
-    process.env.FRONTEND_URL, // Firebase/Vercel URL
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"] // Token ke liye ye lazmi hai
 }));
 
 app.use(express.json());
