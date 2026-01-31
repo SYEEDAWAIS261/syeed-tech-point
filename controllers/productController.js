@@ -23,12 +23,9 @@ exports.addProduct = async (req, res) => {
       discountPrice,
     } = req.body;
 
-    // const imagePaths = req.files
-    //   ? req.files.map((file) => `/uploads/products/${file.filename}`)
-    //   : [];
     const imagePaths = req.files
-  ? req.files.map((file) => file.path) // file.path mein Cloudinary ka full URL hota hai
-  : [];
+      ? req.files.map((file) => `/uploads/products/${file.filename}`)
+      : [];
 
     const product = new Product({
       name,
@@ -139,10 +136,10 @@ exports.updateProduct = async (req, res) => {
 
     // Handle uploaded images
     if (req.files && req.files.length > 0) {
-  const imagePaths = req.files.map((file) => file.path); // Cloudinary URL
-  updateData.image = imagePaths[0];
-  updateData.images = imagePaths;
-}
+      const imagePaths = req.files.map((file) => `/uploads/products/${file.filename}`);
+      updateData.image = imagePaths[0];
+      updateData.images = imagePaths;
+    }
 
     const product = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!product) return res.status(404).json({ message: 'Product not found' });

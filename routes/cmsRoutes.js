@@ -1,37 +1,45 @@
 const express = require('express');
 const router = express.Router();
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const multer = require('multer');
-
-// Models aur Middleware lazmi import karein
 const Cms = require('../models/Cms');
-const auth = require('../middleware/authMiddleware'); // <--- Ensure these paths are correct
+const auth = require('../middleware/authMiddleware');
 const admin = require('../middleware/adminMiddleware');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
-// 1. Cloudinary Configuration
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+/* =========================
+   MULTER SETUP
+========================= */
 
-// 2. Professional Storage Setup (No more fs.mkdirSync!)
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'cms_uploads',
-    allowed_formats: ['jpg', 'png', 'jpeg'],
+const uploadDir = 'uploads/cms';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `hero-${Date.now()}${path.extname(file.originalname)}`);
   },
 });
 
-const upload = multer({ storage });
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed'), false);
+  }
+};
+
+const upload = multer({ storage, fileFilter });
 
 /* =========================
    ROUTES
 ========================= */
 
-// 1️⃣ PUBLIC GET
+// 1️⃣ PUBLIC GET (Website + Admin both use this)
 router.get('/home-content', async (req, res) => {
   try {
     const content = await Cms.findOne({ pageName: 'home' });
@@ -41,26 +49,32 @@ router.get('/home-content', async (req, res) => {
   }
 });
 
-// 2️⃣ ADMIN PUT (Professional Cloud Upload)
-router.put('/home-content', auth, admin, upload.single('heroImage'), async (req, res) => {
-  try {
-    const updateData = { ...req.body };
+// 2️⃣ ADMIN PUT (Text + Image)
+router.put(
+  '/home-content',
+  auth,
+  admin,
+  upload.single('heroImage'),
+  async (req, res) => {
+    try {
+      const updateData = { ...req.body };
 
-    // Agar image upload hui hai, to Cloudinary ka URL milega
-    if (req.file) {
-      updateData.heroImage = req.file.path; // Ye Cloudinary ka secure URL hoga
+      // ✅ If image uploaded
+      if (req.file) {
+        updateData.heroImage = `uploads/cms/${req.file.filename}`;
+      }
+
+      const updatedContent = await Cms.findOneAndUpdate(
+        { pageName: 'home' },
+        updateData,
+        { new: true, upsert: true } 
+      );
+
+      res.json(updatedContent);
+    } catch (err) {
+      res.status(400).json({ message: err.message });
     }
-
-    const updatedContent = await Cms.findOneAndUpdate(
-      { pageName: 'home' },
-      updateData,
-      { new: true, upsert: true }
-    );
-
-    res.json(updatedContent);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
   }
-});
+);
 
 module.exports = router;

@@ -1,64 +1,57 @@
 const express = require('express');
 const router = express.Router();
-// Cloudinary Imports
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const multer = require('multer');
-
+const passport = require('passport');
+const jwt = require('jsonwebtoken');
 const {
-  signup, login, logout, getProfile, updateProfile, verifyEmail,
-  resendVerificationCode, getAllUsers, toggleBlockUser,
-  forgotPassword, resetPassword, getUserStats,
+  signup,
+  login,
+  logout,
+  getProfile,
+  updateProfile,
+  verifyEmail,
+  resendVerificationCode,
+  getAllUsers,
+  toggleBlockUser,
+  forgotPassword,
+  resetPassword,
+  getUserStats,
 } = require('../controllers/authController');
 
 const authMiddleware = require('../middleware/authMiddleware');
-const admin = require('../middleware/adminMiddleware');
+const admin = require('../middleware/adminMiddleware')
+const upload = require('../middleware/upload');
 const User = require('../models/User');
 
-// 1. Cloudinary Config
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+// 🔐 Manual Auth Routes
+router.post('/signup', signup);
+router.post('/verify', verifyEmail);
+router.post('/resend', resendVerificationCode);
+router.post('/login', login);
 
-// 2. Profile Image Storage Setup
-const profileStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'profile_images',
-    allowed_formats: ['jpg', 'png', 'jpeg'],
-    transformation: [{ width: 500, height: 500, crop: 'limit' }] // Profile pic optimized ho jayegi
-  },
-});
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
 
-const uploadProfile = multer({ storage: profileStorage });
+// 🔒 Protected Profile Routes
+router.get('/profile', authMiddleware, getProfile);
+router.put('/profile', authMiddleware, updateProfile);
+router.post('/logout', authMiddleware, logout);
 
-/* =========================
-   ROUTES
-========================= */
-
-// ... (signup, login, etc. routes same rahenge)
-
-// 🔒 Updated Profile Image Upload
+// 🔒 Upload Profile Image
 router.put(
   '/upload-profile',
   authMiddleware,
-  uploadProfile.single('profileImage'), // Naya Cloudinary middleware
+  upload.single('profileImage'),
   async (req, res) => {
     try {
       const user = await User.findById(req.user._id);
       if (!user) return res.status(404).json({ message: 'User not found' });
 
-      if (!req.file) return res.status(400).json({ message: 'No image uploaded' });
-
-      // ✅ req.file.path ab Cloudinary ka URL hai
-      user.profileImage = req.file.path; 
+      user.profileImage = req.file.filename;
       await user.save();
 
       res.json({
         message: 'Profile image uploaded successfully',
-        imageUrl: user.profileImage, // Direct URL bhej rahe hain
+        imageUrl: `/uploads/profile/${user.profileImage}`,
       });
     } catch (err) {
       console.error(err);
@@ -66,5 +59,83 @@ router.put(
     }
   }
 );
+
+// ✅ Admin-only Routes for User Management
+router.get('/all-users', admin, getAllUsers);
+router.put('/block/:id', admin, toggleBlockUser);
+// Example:
+router.get('/stats', authMiddleware, getUserStats);
+
+// 🌐 Google OAuth Routes
+router.get(
+  '/google/login',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    prompt: 'select_account',
+    state: 'login',
+    // Forcefully redirect_uri yahan specify karein
+    callbackURL: process.env.GOOGLE_CALLBACK_URL 
+  })
+);
+
+router.get(
+  '/google/signup',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    prompt: 'consent',
+    state: 'signup',
+    // Forcefully redirect_uri yahan specify karein
+    callbackURL: process.env.GOOGLE_CALLBACK_URL 
+  })
+);
+
+router.get(
+  '/google/signup',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    prompt: 'consent',
+    state: 'signup',
+    // Forcefully redirect_uri yahan specify karein
+    callbackURL: process.env.GOOGLE_CALLBACK_URL 
+  })
+);
+
+// ✅ Updated Google Callback — Blocked users cannot log in
+router.get(
+  '/google/callback',
+  passport.authenticate('google', {
+    session: false,
+    failureRedirect: '/api/auth/google/failure',
+  }),
+  async (req, res) => {
+    try {
+      const user = req.user;
+
+      // 🚫 Check if blocked
+      if (user.isBlocked) {
+        return res.redirect(
+          'http://localhost:5173/login?error=blocked_account'
+        );
+      }
+
+      // ✅ Generate JWT token
+      const token = jwt.sign(
+        { id: user._id, isAdmin: user.isAdmin },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      res.redirect(`http://localhost:5173/login?token=${token}`);
+    } catch (err) {
+      console.error('Google callback error:', err);
+      res.redirect('http://localhost:5173/login?error=server_error');
+    }
+  }
+);
+
+// ❌ Google failure
+router.get('/google/failure', (req, res) => {
+  res.redirect('http://localhost:5173/login?error=account_not_found');
+});
+
 module.exports = router;
-// ... (Admin aur Google routes same rahenge)

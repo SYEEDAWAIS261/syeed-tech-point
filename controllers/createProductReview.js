@@ -19,7 +19,7 @@ exports.createProductReview = async (req, res) => {
     if (!product) return res.status(404).json({ message: "Product not found" });
 
     // ✅ 3. Fetch user for name + image
-   const user = await User.findById(userId).select("username profileImage");
+    const user = await User.findById(userId).select("username profileImage");
     if (!user) return res.status(404).json({ message: "User not found" });
 
     // ✅ 4. Check if already reviewed
@@ -30,7 +30,10 @@ exports.createProductReview = async (req, res) => {
       return res.status(400).json({ message: "You have already reviewed this product" });
 
     // ✅ 5. Construct full image path (fix)
-    const userImagePath = user.profileImage || "";
+    const userImagePath = user.profileImage
+      ? `/uploads/profile/${user.profileImage}`
+      : "";
+
     // ✅ 6. Create review
     const review = {
       name: user.username,

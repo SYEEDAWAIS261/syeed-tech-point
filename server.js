@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const passport = require('passport');
 const http = require('http');
 const path = require('path');
+const User = require('./models/User');
 
 // Load environment variables
 dotenv.config();
@@ -13,7 +14,7 @@ dotenv.config();
 const connectDB = require('./config/db');
 connectDB();
 
-// 1. Import routes
+// Import routes
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const cardRoutes = require('./routes/cardRoutes');
@@ -25,63 +26,42 @@ const discountbannerRoutes = require('./routes/discountbannerRoutes');
 const subscriberRoutes = require('./routes/subscriberRoutes');
 const unsubscribeRoutes = require('./routes/unsubscribeRoutes');
 const couponRoutes = require('./routes/coupons');
-const reviewRoutes = require('./routes/reviewRoutes');
+const reviewRoutes = require('./routes/reviewRoutes')
 const cmsRoutes = require('./routes/cmsRoutes'); 
-const chatRoutes = require("./routes/chatRoutes"); // Extension (.js) ki zaroorat nahi hoti
+const chatRoutes = require ("./routes/chatRoutes.js");
 const articleRoutes = require('./routes/articleRoutes');
-
 require('./config/passport'); // Google strategy
 
 // Initialize app
 const app = express();
 const server = http.createServer(app);
 
-// 2. Middleware
-// 2. Middleware
-const allowedOrigins = [
-  "http://localhost:5173", 
-  "http://localhost:5174",
-  "https://ai-ecommerce-4a2c6.web.app",
-].filter(Boolean); // Yeh line 'undefined' values ko nikal degi
-
+// Middleware
 app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      return callback(new Error('CORS Policy Error'), false);
-    }
-    return callback(null, true);
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"]
+  origin: [
+    "http://localhost:5173", 
+    "http://localhost:5174",
+    '*', // ✅ Yeh wala port add karein jo aap use kar rahe hain
+    // "https://ai-ecommerce-4a2c6.web.app",
+    process.env.FRONTEND_URL,
+    
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
 }));
-
-// Yeh line routes se pehle lazmi honi chahiye
-app.options('*', cors());
 app.use(express.json());
 app.set("trust proxy", 1);
 app.use(passport.initialize());
 
-/* NOTE: Cloudinary use karne ke baad '/uploads' static folder ki zaroorat nahi hai.
-   Lekin agar purani images abhi bhi local hain toh ye lines rehne dein:
-*/
+// Serve static uploads folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads/articles', express.static(path.join(__dirname, 'uploads/articles')));
 
-// 3. API Routes
-// Inko temporarily add karein check karne ke liye
-console.log('authRoutes:', typeof authRoutes);
-console.log('productRoutes:', typeof productRoutes);
-console.log('bannerRoutes:', typeof bannerRoutes);
-console.log('discountbannerRoutes:', typeof discountbannerRoutes);
-console.log('cmsRoutes:', typeof cmsRoutes);
-console.log('articleRoutes:', typeof articleRoutes);
-
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cardRoutes);
-app.use('/api/orders', orderRoutes);
+app.use('/api/orders', orderRoutes); // ✅ Includes new /track/:trackingId route
 app.use('/api/contact', contactRoute);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/banners', bannerRoutes);
@@ -93,20 +73,10 @@ app.use("/api/reviews", reviewRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use("/api/chat", chatRoutes);
 app.use('/api/articles', articleRoutes);
-
-// Root Route for Testing
-app.get('/', (req, res) => {
-  res.send('🚀 Syeed Tech Point API is Running...');
-});
-
-// 4. Global Error Handler
+// ⚙️ Global Error Handler (optional, but useful)
 app.use((err, req, res, next) => {
   console.error('🔥 Server Error:', err.stack);
-  res.status(500).json({ 
-    success: false, 
-    message: 'Internal Server Error',
-    error: process.env.NODE_ENV === 'development' ? err.message : {} 
-  });
+  res.status(500).json({ message: 'Internal Server Error' });
 });
 
 // Start Server

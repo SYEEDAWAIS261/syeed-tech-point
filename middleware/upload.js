@@ -1,40 +1,51 @@
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const fs = require('fs');
 const multer = require('multer');
+const path = require('path');
 
-// Cloudinary Configuration (Yeh variables .env mein hone chahiye)
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+// Helper to ensure a folder exists
+const ensureDir = (dirPath) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+};
 
-// Cloudinary Storage Setup
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: async (req, file) => {
-    // Dynamic folder selection
-    let folderName = 'general';
+// Choose destination dynamically based on route
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    let folder = 'uploads';
+
+    // If uploading profile image
     if (req.baseUrl.includes('auth') || req.url.includes('profile')) {
-      folderName = 'profile_pics';
+      folder = 'uploads/profile';
     } else if (req.baseUrl.includes('product')) {
-      folderName = 'products';
-    } else if (req.baseUrl.includes('articles')) {
-      folderName = 'articles';
+      folder = 'uploads/products';
     }
 
-    return {
-      folder: folderName,
-      allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'gif'],
-      public_id: `${Date.now()}-${file.originalname.split('.')[0]}`,
-    };
+    const fullPath = path.join(__dirname, '..', folder);
+    ensureDir(fullPath);
+    cb(null, fullPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${Date.now()}-${file.originalname}`;
+    cb(null, uniqueName);
   },
 });
 
-// Final Multer Instance
-const upload = multer({ 
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+// Optional: filter to accept only image types
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+  if (!allowed.includes(ext)) {
+    return cb(new Error('Only image files are allowed'), false);
+  }
+  cb(null, true);
+};
+
+// Final multer instance
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 2MB max
 });
 
 module.exports = upload;

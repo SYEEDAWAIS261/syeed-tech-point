@@ -1,24 +1,17 @@
 const express = require("express");
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require("multer");
+const path = require("path");
 const DiscountBanner = require("../models/DiscountBanner");
 
 const router = express.Router();
 
-// 1. Cloudinary Configuration
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// 2. Cloudinary Storage Setup
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'discount_banners', // Cloudinary par alag folder
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+// Setup multer storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/banners"); // same folder as banners
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "-" + file.originalname.replace(/\s+/g, "_"));
   },
 });
 
@@ -38,7 +31,7 @@ router.post("/", upload.single("image"), async (req, res) => {
       subtitle,
       discount,
       category,
-      image: req.file.path, // ✅ Cloudinary URL
+      image: `/uploads/banners/${req.file.filename}`,
       isActive: isActive !== undefined ? isActive : true,
     });
 
@@ -56,6 +49,7 @@ router.get("/", async (req, res) => {
     const banners = await DiscountBanner.find().sort({ createdAt: -1 });
     res.json(banners);
   } catch (err) {
+    console.error("Error fetching discount banners:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -67,6 +61,7 @@ router.get("/active", async (req, res) => {
     if (!banner) return res.status(404).json({ message: "No active discount banner" });
     res.json(banner);
   } catch (err) {
+    console.error("Error fetching active banner:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -78,7 +73,7 @@ router.put("/:id", upload.single("image"), async (req, res) => {
     const updateData = { title, subtitle, discount, category, isActive };
 
     if (req.file) {
-      updateData.image = req.file.path; // ✅ Cloudinary URL update
+      updateData.image = `/uploads/banners/${req.file.filename}`;
     }
 
     const updatedBanner = await DiscountBanner.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -89,6 +84,7 @@ router.put("/:id", upload.single("image"), async (req, res) => {
 
     res.json(updatedBanner);
   } catch (err) {
+    console.error("Error updating discount banner:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -102,6 +98,7 @@ router.delete("/:id", async (req, res) => {
     }
     res.json({ message: "Discount banner deleted successfully" });
   } catch (err) {
+    console.error("Error deleting discount banner:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
