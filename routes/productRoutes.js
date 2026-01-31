@@ -36,23 +36,15 @@ const upload = multer({ storage: productStorage });
    ROUTES
 ========================= */
 
-// ✅ Add product with multiple images
-router.post('/', auth, admin, upload.array('images', 4), addProduct);
-
-router.get('/limited', getLimitedProducts);
 router.get('/', getProducts);
+router.get('/limited', getLimitedProducts);
 router.get("/top-products", getTopSellingProducts);
 router.get("/highest-discount", getHighestDiscountProduct);
-
-router.post('/wishlist/toggle/:productId', auth, toggleWishlist);
-
-// ✅ Update product with multiple images
-router.put('/:id', auth, admin, upload.array('images', 4), updateProduct);
-
-router.delete('/:id', auth, admin, deleteProduct);
 router.get('/:id', getProductById);
-
-// ✅ Reviews with multiple images
+router.post('/wishlist/toggle/:productId', auth, toggleWishlist);
 router.post('/:id/reviews', auth, upload.array('images', 3), createProductReview);
+router.post('/', auth, admin, upload.array('images', 4), addProduct);
+router.put('/:id', auth, admin, upload.array('images', 4), updateProduct);
+router.delete('/:id', auth, admin, deleteProduct);
 
 module.exports = router;
