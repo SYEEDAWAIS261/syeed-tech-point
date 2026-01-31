@@ -41,17 +41,17 @@ const server = http.createServer(app);
 const allowedOrigins = [
   "http://localhost:5173", 
   "http://localhost:5174",
-  process.env.FRONTEND_URL
+  "https://ai-ecommerce-4a2c6.web.app",
 ].filter(Boolean); // Yeh line 'undefined' values ko nikal degi
 
 app.use(cors({
   origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('vercel.app')) {
-      return callback(null, true);
-    } else {
-      return callback(new Error('CORS blocked this origin'), false);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(new Error('CORS Policy Error'), false);
     }
+    return callback(null, true);
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
