@@ -66,5 +66,5 @@ router.put(
     }
   }
 );
-
+module.exports = router;
 // ... (Admin aur Google routes same rahenge)

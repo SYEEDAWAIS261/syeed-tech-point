@@ -5,7 +5,6 @@ const dotenv = require('dotenv');
 const passport = require('passport');
 const http = require('http');
 const path = require('path');
-const User = require('./models/User');
 
 // Load environment variables
 dotenv.config();
@@ -14,7 +13,7 @@ dotenv.config();
 const connectDB = require('./config/db');
 connectDB();
 
-// Import routes
+// 1. Import routes
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const cardRoutes = require('./routes/cardRoutes');
@@ -26,25 +25,23 @@ const discountbannerRoutes = require('./routes/discountbannerRoutes');
 const subscriberRoutes = require('./routes/subscriberRoutes');
 const unsubscribeRoutes = require('./routes/unsubscribeRoutes');
 const couponRoutes = require('./routes/coupons');
-const reviewRoutes = require('./routes/reviewRoutes')
+const reviewRoutes = require('./routes/reviewRoutes');
 const cmsRoutes = require('./routes/cmsRoutes'); 
-const chatRoutes = require ("./routes/chatRoutes.js");
+const chatRoutes = require("./routes/chatRoutes"); // Extension (.js) ki zaroorat nahi hoti
 const articleRoutes = require('./routes/articleRoutes');
+
 require('./config/passport'); // Google strategy
 
 // Initialize app
 const app = express();
 const server = http.createServer(app);
 
-// Middleware
+// 2. Middleware
 app.use(cors({
   origin: [
     "http://localhost:5173", 
     "http://localhost:5174",
-    '*', // ✅ Yeh wala port add karein jo aap use kar rahe hain
-    // "https://ai-ecommerce-4a2c6.web.app",
-    process.env.FRONTEND_URL,
-    
+    process.env.FRONTEND_URL, // Firebase/Vercel URL
   ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
@@ -54,15 +51,24 @@ app.use(express.json());
 app.set("trust proxy", 1);
 app.use(passport.initialize());
 
-// Serve static uploads folder
+/* NOTE: Cloudinary use karne ke baad '/uploads' static folder ki zaroorat nahi hai.
+   Lekin agar purani images abhi bhi local hain toh ye lines rehne dein:
+*/
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/uploads/articles', express.static(path.join(__dirname, 'uploads/articles')));
 
-// API Routes
+// 3. API Routes
+// Inko temporarily add karein check karne ke liye
+console.log('authRoutes:', typeof authRoutes);
+console.log('productRoutes:', typeof productRoutes);
+console.log('bannerRoutes:', typeof bannerRoutes);
+console.log('discountbannerRoutes:', typeof discountbannerRoutes);
+console.log('cmsRoutes:', typeof cmsRoutes);
+console.log('articleRoutes:', typeof articleRoutes);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cardRoutes);
-app.use('/api/orders', orderRoutes); // ✅ Includes new /track/:trackingId route
+app.use('/api/orders', orderRoutes);
 app.use('/api/contact', contactRoute);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/banners', bannerRoutes);
@@ -74,10 +80,20 @@ app.use("/api/reviews", reviewRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use("/api/chat", chatRoutes);
 app.use('/api/articles', articleRoutes);
-// ⚙️ Global Error Handler (optional, but useful)
+
+// Root Route for Testing
+app.get('/', (req, res) => {
+  res.send('🚀 Syeed Tech Point API is Running...');
+});
+
+// 4. Global Error Handler
 app.use((err, req, res, next) => {
   console.error('🔥 Server Error:', err.stack);
-  res.status(500).json({ message: 'Internal Server Error' });
+  res.status(500).json({ 
+    success: false, 
+    message: 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.message : {} 
+  });
 });
 
 // Start Server
