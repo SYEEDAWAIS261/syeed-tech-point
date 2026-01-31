@@ -1,22 +1,27 @@
 const express = require("express");
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require("multer");
-const path = require("path");
 const Banner = require("../models/Banner");
 
 const router = express.Router();
 
-// Setup multer storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/banners");
-  },
-  filename: function (req, file, cb) {
-    cb(
-      null,
-      Date.now() + "-" + file.originalname.replace(/\s+/g, "_")
-    );
+// 1. Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// 2. Setup Cloudinary Storage for Banners
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'banners', // Cloudinary mein banners ka folder ban jayega
+    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
   },
 });
+
 const upload = multer({ storage });
 
 // ✅ Create Banner
@@ -30,7 +35,7 @@ router.post("/", upload.single("image"), async (req, res) => {
     const banner = new Banner({
       title,
       desc,
-      image: `/uploads/banners/${req.file.filename}`,
+      image: req.file.path, // ✅ Direct Cloudinary URL
       isActive: isActive !== undefined ? isActive : true,
     });
 
@@ -42,7 +47,7 @@ router.post("/", upload.single("image"), async (req, res) => {
   }
 });
 
-// ✅ Get all banners
+// ✅ Get all banners (No change needed here)
 router.get("/", async (req, res) => {
   try {
     const banners = await Banner.find().sort({ createdAt: -1 });
@@ -59,7 +64,7 @@ router.put("/:id", upload.single("image"), async (req, res) => {
     const updateData = { title, desc, isActive };
 
     if (req.file) {
-      updateData.image = `/uploads/banners/${req.file.filename}`;
+      updateData.image = req.file.path; // ✅ Direct Cloudinary URL
     }
 
     const updatedBanner = await Banner.findByIdAndUpdate(

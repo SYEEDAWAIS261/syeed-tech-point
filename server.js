@@ -40,7 +40,8 @@ const server = http.createServer(app);
 app.use(cors({
   origin: [
     "http://localhost:5173", 
-    "http://localhost:5174", // ✅ Yeh wala port add karein jo aap use kar rahe hain
+    "http://localhost:5174",
+    '*', // ✅ Yeh wala port add karein jo aap use kar rahe hain
     // "https://ai-ecommerce-4a2c6.web.app",
     process.env.FRONTEND_URL,
     
@@ -48,6 +49,7 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
+
 app.use(express.json());
 app.set("trust proxy", 1);
 app.use(passport.initialize());

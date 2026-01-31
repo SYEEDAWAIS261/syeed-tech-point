@@ -33,6 +33,7 @@ const getGlobalTestimonials = async (req, res) => {
           name: review.name,
           rating: review.rating,
           comment: review.comment,
+          images: review.images || [],
           createdAt: review.createdAt,
           productName: product.name,
           category: product.category,

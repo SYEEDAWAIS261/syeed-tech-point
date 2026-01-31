@@ -15,7 +15,7 @@ exports.createArticle = async (req, res) => {
       slug,
       content,
       category,
-      image: req.file ? `uploads/articles/${req.file.filename}` : null
+     image: req.file ? req.file.path : null
     });
 
     await newArticle.save();
