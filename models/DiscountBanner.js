@@ -8,6 +8,7 @@ const discountBannerSchema = new mongoose.Schema(
     category: { type: String },
     image: { type: String, required: true },
     isActive: { type: Boolean, default: true },
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' }
   },
   { timestamps: true }
 );

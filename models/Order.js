@@ -7,6 +7,10 @@ const orderSchema = new mongoose.Schema({
       productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
       quantity: { type: Number, required: true },
       priceAtOrder: { type: Number, required: true },
+      selectedVariation: {
+      label: { type: String },
+      price: { type: Number, default: 0 }
+    },
     },
   ],
   total: { type: Number, required: true },

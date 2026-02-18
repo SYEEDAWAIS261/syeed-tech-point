@@ -132,7 +132,7 @@ exports.login = async (req, res) => {
 
     // 🚫 Block check
     if (user.isBlocked) {
-      return res.status(403).json({ message: "Your account has been blocked by Syeed Tech Point Team. Please contact support." });
+      return res.status(403).json({ message: "Your account has been blocked by Al Syed Tech Team. Please contact support." });
     }
 
     // 🔍 Password check (skip if Google login user)
@@ -220,7 +220,7 @@ exports.forgotPassword = async (req, res) => {
 
     await sendEmail(
       user.email,
-      "Reset Your Password - Syeed Tech Point",
+      "Reset Your Password - Al Syed Tech",
       `
         <h3>Hello ${user.username},</h3>
         <p>You requested a password reset.</p>

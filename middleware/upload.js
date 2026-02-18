@@ -31,14 +31,20 @@ const storage = multer.diskStorage({
   },
 });
 
-// Optional: filter to accept only image types
+// Is portion ko update karein
 const fileFilter = (req, file, cb) => {
+  // 1. Extension list mein .jfif add karein
+  const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.jfif']; 
   const ext = path.extname(file.originalname).toLowerCase();
-  const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-  if (!allowed.includes(ext)) {
-    return cb(new Error('Only image files are allowed'), false);
+  
+  // 2. MIME types check karein (jfif ka mime type bhi image/jpeg hi hota hai)
+  const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+
+  if (allowedExts.includes(ext) || allowedMimes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed'), false);
   }
-  cb(null, true);
 };
 
 // Final multer instance

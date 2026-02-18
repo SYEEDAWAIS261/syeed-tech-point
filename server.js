@@ -42,7 +42,7 @@ app.use(cors({
     "http://localhost:5173", 
     "http://localhost:5174",
     '*', // ✅ Yeh wala port add karein jo aap use kar rahe hain
-    // "https://ai-ecommerce-4a2c6.web.app",
+    "https://ai-ecommerce-4a2c6.web.app",
     process.env.FRONTEND_URL,
     
   ],

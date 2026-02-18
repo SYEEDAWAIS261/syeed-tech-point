@@ -37,7 +37,7 @@ router.post('/subscribe', async (req, res) => {
 
           <div style="color:#2d3748; line-height:1.6; font-size:15px;">
             <p>Hi there,</p>
-            <p>Thank you for subscribing to <strong>Syeed E-commerce</strong>! We're thrilled to have you with us.</p>
+            <p>Thank you for subscribing to <strong>Al Syed Tech</strong>! We're thrilled to have you with us.</p>
             <p>From now on, you'll be the first to know about:</p>
             <ul style="color:#4a5568;">
               <li>🔥 Exclusive discounts and flash sales</li>
@@ -55,12 +55,12 @@ router.post('/subscribe', async (req, res) => {
 
           <p style="font-size:15px; color:#2d3748; margin-top:30px; border-top:1px solid #edf2f7; padding-top:20px;">
             Best Regards,<br/>
-            <strong>Syeed E-commerce Team</strong>
+            <strong>Al Syed Tech Team</strong>
           </p>
         </div>
 
         <div style="text-align:center; font-size:12px; color:#a0aec0; margin-top:15px;">
-          <p>© ${new Date().getFullYear()} Syeed E-commerce. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} Al Syed Tech. All rights reserved.</p>
           <p>You are receiving this because you are subscribed to our newsletter.<br/>
           <a href="${unsubscribeUrl}" style="color:#a0aec0; text-decoration:underline;">Unsubscribe</a></p>
         </div>
@@ -82,9 +82,9 @@ router.post('/subscribe', async (req, res) => {
 });
 
     await transporter.sendMail({
-      from: `"Syeed E-commerce" <${process.env.SMTP_EMAIL}>`,
+      from: `"Al Syed Tech" <${process.env.SMTP_EMAIL}>`,
       to: email,
-      subject: '🎉 Welcome to Our Newsletter!',
+      subject: 'Welcome to Our Newsletter!',
       html: emailHTML
     });
 

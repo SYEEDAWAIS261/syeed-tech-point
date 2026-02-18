@@ -1,60 +1,64 @@
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 
-// ✅ Add to Cart
 const addToCart = async (req, res) => {
-  const { productId, quantity } = req.body;
+  const { productId, quantity, selectedVariation } = req.body;
   const userId = req.user._id;
 
   try {
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
 
-    // 🚫 BLOCK out of stock products
-    if (product.quantity === 0) {
-      return res.status(400).json({ message: "Product is out of stock" });
-    }
+    console.log("Full Request Body:", JSON.stringify(req.body, null, 2));
+    const variationLabel = selectedVariation?.label || null;
 
-    // 🚫 Block if requested quantity > available stock
-    if (quantity > product.quantity) {
-      return res.status(400).json({ message: `Only ${product.quantity} items available` });
-    }
-
-    // Check if item already in cart
-    let cartItem = await Cart.findOne({ user: userId, product: productId });
+    let cartItem = await Cart.findOne({ 
+      user: userId, 
+      product: productId,
+      "selectedVariation.label": variationLabel 
+    });
 
     if (cartItem) {
-      // 🚫 Prevent exceeding stock
-      if (cartItem.quantity + quantity > product.quantity) {
-        return res.status(400).json({
-          message: `Only ${product.quantity} items available in stock`
-        });
-      }
-      cartItem.quantity += quantity;
+      cartItem.quantity += Number(quantity);
     } else {
-      cartItem = new Cart({ user: userId, product: productId, quantity });
+      // 🟢 UPDATE YAHAN KAREIN: 
+      // Direct object pass karne ke bajaye fields ko manually assign karein
+      cartItem = new Cart({ 
+        user: userId, 
+        product: productId, 
+        quantity: Number(quantity),
+        selectedVariation: {
+          label: selectedVariation?.label || null,
+          price: Number(selectedVariation?.price || 0)
+        }
+      });
     }
 
     await cartItem.save();
-    res.status(200).json({ message: 'Item added to cart', cartItem });
+    
+    // Refresh and return
+    const populatedItem = await Cart.findById(cartItem._id).populate('product');
+    res.status(200).json({ message: 'Added to cart', cartItem: populatedItem });
+
   } catch (err) {
-    console.error('❌ Add to cart failed:', err);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('❌ Backend Error:', err);
+    res.status(500).json({ message: 'Internal Server Error', error: err.message });
   }
 };
 
-// ✅ Get Cart Items
+// ✅ Get Cart Items (Updated)
 const getCart = async (req, res) => {
   try {
+    // 1. Cart items dhoondein aur product ki details fill (populate) karein
     const cartItems = await Cart.find({ user: req.user._id }).populate('product');
+
+    // 2. Response bhejne se pehle check karein (Optional Debugging)
+    console.log("Fetching Cart for User:", req.user._id, cartItems);
+
     res.status(200).json(cartItems);
   } catch (err) {
+    console.error('❌ Get cart failed:', err);
     res.status(500).json({ message: 'Failed to fetch cart', error: err.message });
   }
 };
-
 // ✅ Delete Item from Cart
 const deleteCartItem = async (req, res) => {
   try {
