@@ -6,37 +6,44 @@ const addToCart = async (req, res) => {
   const userId = req.user._id;
 
   try {
-
     console.log("Full Request Body:", JSON.stringify(req.body, null, 2));
-    const variationLabel = selectedVariation?.label || null;
 
+    // 1. Safety Check: Agar variation nahi hai toh empty object ya null handle karein
+    const variationId = selectedVariation?.id || null;
+
+    // 2. Query Logic: Variation ID ke sath check karna
     let cartItem = await Cart.findOne({ 
       user: userId, 
       product: productId,
-      "selectedVariation.label": variationLabel 
+      'selectedVariation.id': variationId // Ab yeh null ko bhi sahi handle karega
     });
 
     if (cartItem) {
-      cartItem.quantity += Number(quantity);
+      // Agar same product + same variation mil gaya
+      cartItem.quantity += Number(quantity); // Quantity ensure karein ke number ho
+      await cartItem.save();
     } else {
-      // 🟢 UPDATE YAHAN KAREIN: 
-      // Direct object pass karne ke bajaye fields ko manually assign karein
-      cartItem = new Cart({ 
-        user: userId, 
-        product: productId, 
+      // Naya item add karna
+      cartItem = new Cart({
+        user: userId,
+        product: productId,
         quantity: Number(quantity),
         selectedVariation: {
-          label: selectedVariation?.label || null,
-          price: Number(selectedVariation?.price || 0)
+            id: variationId,
+            label: selectedVariation?.label || null,
+            price: selectedVariation?.price || 0
         }
       });
+      await cartItem.save();
     }
 
-    await cartItem.save();
-    
-    // Refresh and return
+    // Populate taake frontend ko product ki details (image, name) mil jayein
     const populatedItem = await Cart.findById(cartItem._id).populate('product');
-    res.status(200).json({ message: 'Added to cart', cartItem: populatedItem });
+    
+    res.status(200).json({ 
+        message: 'Added to cart', 
+        cartItem: populatedItem 
+    });
 
   } catch (err) {
     console.error('❌ Backend Error:', err);
@@ -75,5 +82,21 @@ const deleteCartItem = async (req, res) => {
     res.status(500).json({ message: 'Failed to delete item', error: err.message });
   }
 };
+// ✅ Clear Full Cart
+const clearCart = async (req, res) => {
+  try {
+    await Cart.deleteMany({ user: req.user._id });
 
-module.exports = { addToCart, getCart, deleteCartItem };
+    res.status(200).json({
+      message: "Cart cleared successfully"
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      message: "Failed to clear cart",
+      error: err.message
+    });
+  }
+};
+
+module.exports = { addToCart, getCart, deleteCartItem, clearCart };

@@ -345,10 +345,15 @@ exports.deleteProduct = async (req, res) => {
 //   }
 // };
 
-// ✅ GET LIMITED PRODUCTS (for homepage)
+/// ✅ GET LIMITED PRODUCTS (Updated Logic)
 exports.getLimitedProducts = async (req, res) => {
   try {
-    const products = await Product.find().limit(8);
+    // Database se wo products pehle uthaein jin ka discountPercentage 0 se zyada ho
+    // .sort({ discountPercentage: -1 }) se zyada discount wale pehle aayenge
+    const products = await Product.find()
+      .sort({ discountPercentage: -1 }) 
+      .limit(10); 
+      
     res.json(products);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch limited products', error: err.message });

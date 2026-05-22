@@ -39,7 +39,7 @@ const server = http.createServer(app);
 // Middleware
 app.use(cors({
   origin: [
-    "http://localhost:5173", 
+    "http://localhost:3000", 
     "http://localhost:5174",
     '*', // ✅ Yeh wala port add karein jo aap use kar rahe hain
     "https://ai-ecommerce-4a2c6.web.app",
@@ -63,7 +63,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/cart', cardRoutes);
 app.use('/api/orders', orderRoutes); // ✅ Includes new /track/:trackingId route
 app.use('/api/contact', contactRoute);
-app.use('/api/payments', paymentRoutes);
+app.use('/api/stripe', paymentRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/discountbanner', discountbannerRoutes);
 app.use('/api/subscribers', subscriberRoutes);

@@ -13,8 +13,14 @@ const orderSchema = new mongoose.Schema({
     },
     },
   ],
+  subtotal: { type: Number, default: 0 }, // ✅ Add this
+  tax: { type: Number, default: 0 },
   total: { type: Number, required: true },
-  
+  stripeSessionId: {
+  type: String,
+  unique: true,
+  sparse: true
+},
   // SHIPPING DETAILS
   shippingMethod: { type: String, default: 'Standard' }, 
   shippingCost: { type: Number, default: 0 },

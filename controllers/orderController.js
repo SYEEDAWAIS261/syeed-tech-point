@@ -46,19 +46,27 @@ exports.createOrder = async (req, res) => {
         }
       }
     }
+const subTotalItems = productsWithPrice.reduce((acc, item) => {
+    const unitPrice = item.priceAtOrder + (item.selectedVariation?.price || 0);
+    return acc + (unitPrice * item.quantity);
+}, 0);
 
+const calculatedTax = subTotalItems * 0.05;
+const finalTotal = subTotalItems + calculatedTax + Number(shippingCost); // ✅ Total hamesha backend pe re-calculate karein
     // 3. Create Order Object (Fixed the 'total' variable bug)
-    const order = new Order({
-      userId: req.user.id,
-      products: productsWithPrice,
-      total: total, // Yahan direct 'total' use kiya hai kyunke coupon nahi hai
-      paymentMethod,
-      shippingAddress,
-      shippingMethod: shippingMethod || "Standard",
-      shippingCost: shippingCost || 0,
-      trackingId: "ORD-" + crypto.randomBytes(4).toString("hex").toUpperCase(),
-    });
-
+ const order = new Order({
+  userId: req.user.id,
+  products: productsWithPrice,
+  subtotal: subTotalItems, // ✅ Ye add karein
+  tax: calculatedTax,
+  total: finalTotal,
+  paymentMethod,
+  shippingAddress,
+  shippingMethod,
+  shippingCost,
+  status: "Placed",
+  trackingId: "ORD-" + crypto.randomBytes(4).toString("hex").toUpperCase()
+});
     // Save Order to DB
     await order.save();
 
@@ -77,10 +85,7 @@ exports.createOrder = async (req, res) => {
         const populatedOrder = await Order.findById(order._id).populate('products.productId');
 
         // Calculations for Email
-        const subTotalItems = populatedOrder.products.reduce((acc, item) => 
-          acc + (item.priceAtOrder * item.quantity), 0
-        );
-        const calculatedTax = subTotalItems * 0.05;
+        
         const totalOriginalPrice = populatedOrder.products.reduce((acc, item) => 
           acc + ((item.productId?.price || item.priceAtOrder) * item.quantity), 0
         );
@@ -341,286 +346,273 @@ exports.downloadInvoice = async (req, res) => {
     const user = await User.findById(order.userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const doc = new PDFDocument({ margin: 50 });
+    // ✅ PAGE SIZE A4 set karo aur margins kam karo
+    const doc = new PDFDocument({ 
+      margin: 40,
+      size: 'A4',
+      bufferPages: true // ✅ Important: Multiple pages handle karne ke liye
+    });
 
     const watermarkPath = path.join(__dirname, '../public/logo.png');
     const watermarkOpacity = 0.05;
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
-    const watermarkSize = 400;
-    const centerX = pageWidth / 2;
-    const centerY = pageHeight / 2;
-
-    doc.save();
-    doc.translate(centerX, centerY);
-    doc.rotate(-45);
-    doc.opacity(watermarkOpacity);
-    doc.image(watermarkPath, -watermarkSize / 2, -watermarkSize / 2, {
-      width: watermarkSize,
-      align: 'center',
-      valign: 'center',
-    });
-    doc.restore();
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=invoice-${order._id}.pdf`);
     doc.pipe(res);
 
-    // ---------------- HEADER ----------------
-    doc.fontSize(26).font('Helvetica-Bold');
-    // const logoPath = path.join(__dirname, '');
-    const syeedWidth = doc.widthOfString('Syeed');
-    const ecommerceWidth = doc.widthOfString(' Tech Point');
-    const totalWidth = syeedWidth + ecommerceWidth;
-    const startX = centerX - totalWidth / 2;
-    const y = 35;
+    // ✅ HELPER: Har page par watermark add karne ka function
+    const addWatermark = () => {
+      const watermarkSize = 400;
+      const centerX = pageWidth / 2;
+      const centerY = pageHeight / 2;
+      
+      doc.save();
+      doc.translate(centerX, centerY);
+      doc.rotate(-45);
+      doc.opacity(watermarkOpacity);
+      doc.image(watermarkPath, -watermarkSize / 2, -watermarkSize / 2, {
+        width: watermarkSize,
+        align: 'center',
+        valign: 'center',
+      });
+      doc.restore();
+    };
 
-    const logoPath = path.join(__dirname, '../public/logo.png');
+    // ✅ HELPER: Header add karne ka function (har page ke liye)
+    const addHeader = () => {
+      const logoPath = path.join(__dirname, '../public/logo.png');
+      const logoWidth = 100; // ✅ Chota logo
+      const logoHeight = 100;
+      
+      doc.image(logoPath, (doc.page.width - logoWidth) / 2, 20, {
+        width: logoWidth,
+        height: logoHeight,
+        align: 'center',
+      });
 
-const logoWidth = 135;
-const logoheight = 135;
-doc.image(logoPath, (doc.page.width - logoWidth) / 2, 30, {
-  width: logoWidth,
-  height: logoheight,
-  align: 'center',
-});
-doc.moveDown(4);
+      // Brand Name
+      doc.font('Helvetica-Bold').fontSize(16);
+      const part1 = 'Al Syed';
+      const part2 = 'Tech';
+      const totalBrandWidth = doc.widthOfString(part1) + doc.widthOfString(part2);
+      const brandX = (doc.page.width - totalBrandWidth) / 2;
+      
+      doc.fillColor('#198754').text(part1, brandX, 125, { continued: true });
+      doc.fillColor('#e9e5e5').text(part2);
+      
+      // Address
+      doc.fontSize(9).fillColor('#555');
+      doc.text('12-B Main Street, Al-Ain, UAE', 0, 145, { align: 'center' });
+      doc.text('Email: syeedstore.service@gmail.com | Phone: +92-334-9094849', { align: 'center' });
+      
+      // Line
+      doc.strokeColor('#cccccc').lineWidth(1).moveTo(40, 175).lineTo(555, 175).stroke();
+    };
 
-    // Function sahi hai, bas call galat ho rahi thi
-const centerText = (text, fontSize = 12, font = 'Helvetica-Bold', color = '#000') => {
-    doc.font(font).fontSize(fontSize).fillColor(color);
-    const textWidth = doc.widthOfString(text);
-    const x = (doc.page.width - textWidth) / 2;
-    doc.text(text, x, doc.y);
-};
+    // ✅ FIRST PAGE SETUP
+    addWatermark();
+    addHeader();
 
-// ---------------- BRAND HEADER (Centered Multi-Color) ----------------
-const part1 = 'Al Syed';
-const part2 = 'Tech';
+    // ---------------- CUSTOMER INFO BOX ----------------
+    const invoiceNo = `INV-${new Date().getFullYear()}-${order._id.toString().slice(-6).toUpperCase()}`;
+    const qrData = `Invoice No: ${invoiceNo}\nOrder ID: ${order._id}\nDate: ${new Date(order.createdAt).toLocaleDateString()}`;
+    const qrImage = await QRCode.toDataURL(qrData);
 
-doc.font('Helvetica-Bold').fontSize(18);
+    const startY = 190;
+    doc.image(qrImage, 40, startY, { width: 60 });
 
-// Dono parts ki total width calculate karein taake perfect center align ho sake
-const totalBrandWidth = doc.widthOfString(part1) + doc.widthOfString(part2);
-const brandX = (doc.page.width - totalBrandWidth) / 2;
+    const paymentStatus = order.paymentMethod === 'Cash on Delivery' ? 'Pending (COD)' : 'Paid';
+    const completeAddress = [
+      order.shippingAddress?.street,
+      order.shippingAddress?.addressLine,
+      order.shippingAddress?.city,
+      order.shippingAddress?.postalCode,
+      order.shippingAddress?.country
+    ].filter(Boolean).join(', ');
 
-// Part 1: Syeed (Green Color)
-doc.fillColor('#198754') // Professional Success Green
-   .text(part1, brandX, doc.y, { continued: true });
+    // Info Box
+    doc.fillColor('#f8f9fa').rect(110, startY, 420, 140).fill();
+    doc.fillColor('#000').fontSize(9);
 
-// Part 2: Tech Point (Dark Gray/Black)
-doc.fillColor('#1a1a1a')
-   .text(part2);
+    const infoX = 120;
+    const valueX = 220;
+    let infoY = startY + 8;
 
-// Baki details ke liye wapas normal function use karein
-doc.moveDown(0.2); // Thora sa gap
+    doc.font('Helvetica-Bold').text('Customer Name:', infoX, infoY);
+    doc.font('Helvetica').text(order.shippingAddress?.fullName || 'N/A', valueX, infoY);
+    
+    infoY += 14;
+    doc.font('Helvetica-Bold').text('Shipping Address:', infoX, infoY);
+    doc.font('Helvetica').text(completeAddress, valueX, infoY, { width: 300, height: 28, ellipsis: true });
+    
+    infoY += 28;
+    doc.font('Helvetica-Bold').text('Invoice No:', infoX, infoY);
+    doc.font('Helvetica').text(invoiceNo, valueX, infoY);
+    
+    infoY += 14;
+    doc.font('Helvetica-Bold').text('Order Date:', infoX, infoY);
+    doc.font('Helvetica').text(new Date(order.createdAt).toLocaleDateString(), valueX, infoY);
+    
+    infoY += 14;
+    doc.font('Helvetica-Bold').text('Payment:', infoX, infoY);
+    doc.font('Helvetica').text(`${order.paymentMethod} (${paymentStatus})`, valueX, infoY);
+    
+    infoY += 14;
+    doc.font('Helvetica-Bold').text('Phone:', infoX, infoY);
+    doc.font('Helvetica').text(order.shippingAddress?.phone || 'N/A', valueX, infoY);
 
-// 1. 'UAE' ko string ke andar shamil kar dein (Extra argument remove karein)
-centerText('12-B Main Street, Al-Ain, UAE', 10, 'Helvetica', '#555');
+    // ---------------- TABLE SETUP ----------------
+    let tableTop = startY + 160;
+    const colX = { no: 40, name: 70, qty: 280, price: 340, total: 420, variation: 480 };
+    
+    // ✅ Check if table fits on first page
+    if (tableTop > 500) {
+      doc.addPage();
+      addWatermark();
+      addHeader();
+      tableTop = 200;
+    }
 
-// 2. Email aur Phone wali line bilkul theek hai  
-centerText('Email: syeedstore.service@gmail.com | Phone: +92-334-9094849', 10, 'Helvetica', '#555');
+    // Table Header
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#fff');
+    doc.fillColor('#198754').rect(40, tableTop - 5, 515, 20).fill();
+    doc.fillColor('#fff');
+    doc.text('No.', colX.no, tableTop);
+    doc.text('Product', colX.name, tableTop);
+    doc.text('Qty', colX.qty, tableTop);
+    doc.text('Price', colX.price, tableTop);
+    doc.text('Total', colX.total, tableTop);
+    doc.text('Variation', colX.variation, tableTop);
 
-    doc.moveDown(0.5).strokeColor('#cccccc').lineWidth(1).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-    doc.moveDown(1.2);
-// ---------------- INVOICE INFO ----------------
-const invoiceNo = `INV-${new Date().getFullYear()}-${order._id.toString().slice(-6).toUpperCase()}`;
-const qrData = `Invoice No: ${invoiceNo}\nOrder ID: ${order._id}\nDate: ${new Date(order.createdAt).toLocaleDateString()}`;
-const qrImage = await QRCode.toDataURL(qrData);
-
-const startY = doc.y;
-doc.image(qrImage, 50, startY, { width: 70 });
-
-const paymentStatus = order.paymentMethod === 'Cash on Delivery' ? 'Pending (COD)' : 'Paid';
-
-// ✅ Box height thori barha di (160) taake address 2 lines mein aaye toh fit ho jaye
-doc.fillColor('#f0f0f0').rect(140, startY, 390, 160).fill();
-doc.fillColor('#000').fontSize(10);
-
-// ✅ UPDATE: Street aur AddressLine dono check kar rahe hain taake address miss na ho
-const completeAddress = [
-    order.shippingAddress?.street,      // Frontend se 'street' aata hai
-    order.shippingAddress?.addressLine, // Agar database mein 'addressLine' ho
-    order.shippingAddress?.city,
-    order.shippingAddress?.postalCode,
-    order.shippingAddress?.country
-].filter(Boolean).join(', ');
-
-// Customer Details
-doc.font('Helvetica-Bold').text(`Customer Name:`, 150, startY + 5)
-   .font('Helvetica').text(`${order.shippingAddress?.fullName || 'N/A'}`, 260, startY + 5);
-
-doc.font('Helvetica-Bold').text(`Shipping Address:`, 150, startY + 20)
-   .font('Helvetica').text(completeAddress, 260, startY + 20, { width: 250 });
-
-// Order Details (Inki positions thori niche ki hain taake address ke saath overlap na ho)
-doc.font('Helvetica-Bold').text(`Invoice No:`, 150, startY + 55)
-   .font('Helvetica').text(invoiceNo, 260, startY + 55);
-
-doc.font('Helvetica-Bold').text(`Order ID:`, 150, startY + 70)
-   .font('Helvetica').text(`${order.id}`, 260, startY + 70);
-
-doc.font('Helvetica-Bold').text(`Order Date:`, 150, startY + 85)
-   .font('Helvetica').text(`${new Date(order.createdAt).toLocaleDateString()}`, 260, startY + 85);
-
-doc.font('Helvetica-Bold').text(`Payment Method:`, 150, startY + 100)
-   .font('Helvetica').text(`${order.paymentMethod}`, 260, startY + 100);
-
-doc.font('Helvetica-Bold').text(`Payment Status:`, 150, startY + 115)
-   .font('Helvetica').text(`${paymentStatus}`, 260, startY + 115);
-
-doc.font('Helvetica-Bold').text(`Customer Phone:`, 150, startY + 130)
-   .font('Helvetica').text(`${order.shippingAddress?.phone || 'N/A'}`, 260, startY + 130);
-
-// ---------------- REST OF INVOICE CONTENT ----------------
-doc.moveDown(6); // Space for table
-
-    const tableTop = doc.y;
-    const colX = { no: 50, name: 90, qty: 320, price: 390, total: 480 };
-
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(10)
-      .fillColor('#000')
-      .text('No.', colX.no, tableTop)
-      .text('Product', colX.name, tableTop)
-      .text('Qty', colX.qty, tableTop)
-      .text('Price', colX.price, tableTop)
-      .text('Total', colX.total, tableTop);
-
-    doc
-      .strokeColor('#aaa')
-      .lineWidth(1)
-      .moveTo(50, tableTop + 15)
-      .lineTo(550, tableTop + 15)
-      .stroke();
-
-    let yPosition = tableTop + 25;
+    let yPosition = tableTop + 20;
     let alternate = false;
     let subTotal = 0;
-let variationTotal = 0;
+    let variationTotal = 0;
+    const rowHeight = 18; // ✅ Fixed row height
 
     order.products.forEach((item, index) => {
-  const product = item.productId;
-  const name = product?.name || product?.brand || 'Unnamed Product';
-  const variationName = item.selectedVariation
-    ? ` (${item.selectedVariation.label})`
-    : '';
+      const product = item.productId;
+      const name = product?.name || product?.brand || 'Unnamed Product';
+      const variationName = item.selectedVariation?.label || '';
+      
+      const price = item.priceAtOrder && item.priceAtOrder > 0 ? item.priceAtOrder : product?.price || 0;
+      const quantity = item.quantity || 1;
+      const variationPrice = item.selectedVariation?.price || 0;
+      
+      variationTotal += variationPrice * quantity;
+      const total = price * quantity;
+      subTotal += total;
 
-  const price =
-    item.priceAtOrder && item.priceAtOrder > 0
-      ? item.priceAtOrder
-      : product?.price || 0;
+      // ✅ PAGE BREAK CHECK: Agar next page chahiye toh
+      if (yPosition > 700) {
+        doc.addPage();
+        addWatermark();
+        addHeader();
+        
+        // Table header repeat on new page
+        doc.font('Helvetica-Bold').fontSize(9).fillColor('#fff');
+        doc.fillColor('#198754').rect(40, 190, 515, 20).fill();
+        doc.fillColor('#fff');
+        doc.text('No.', colX.no, 195);
+        doc.text('Product', colX.name, 195);
+        doc.text('Qty', colX.qty, 195);
+        doc.text('Price', colX.price, 195);
+        doc.text('Total', colX.total, 195);
+        doc.text('Variation', colX.variation, 195);
+        
+        yPosition = 220;
+        alternate = false;
+      }
 
-  const quantity = item.quantity || 1; // ✅ pehle define
-  const variationPrice = item.selectedVariation?.price || 0;
+      // Row background
+      if (alternate) {
+        doc.fillColor('#f8f9fa').rect(40, yPosition - 3, 515, rowHeight).fill();
+      }
+      alternate = !alternate;
 
-  // 🔹 Sirf display ke liye variation total
-  variationTotal += variationPrice * quantity;
+      // Row content
+      doc.fillColor('#000').fontSize(8.5).font('Helvetica');
+      
+      // ✅ Product name wrap nahi hoga, truncate hoga
+      const displayName = name.length > 35 ? name.substring(0, 35) + '...' : name;
+      
+      doc.text(index + 1, colX.no, yPosition);
+      doc.text(displayName, colX.name, yPosition, { width: 200 });
+      doc.text(quantity.toString(), colX.qty, yPosition);
+      doc.text(`$${price.toFixed(2)}`, colX.price, yPosition);
+      doc.text(`$${total.toFixed(2)}`, colX.total, yPosition);
+      doc.text(variationName ? `$${variationPrice.toFixed(2)}` : '-', colX.variation, yPosition);
 
-  const total = price * quantity;
-  subTotal += total;
+      yPosition += rowHeight;
+    });
 
-  if (alternate) {
-    doc.rect(50, yPosition - 2, 500, 18).fill('#f9f9f9');
-    doc.fillColor('#000');
-  }
-  alternate = !alternate;
+    // ---------------- TOTALS SECTION ----------------
+    // ✅ Check if totals fit on current page
+    if (yPosition > 650) {
+      doc.addPage();
+      addWatermark();
+      addHeader();
+      yPosition = 200;
+    }
 
-  doc
-    .fontSize(9.5)
-    .fillColor('#000')
-    .text(index + 1, colX.no, yPosition)
-    .text(name + variationName, colX.name, yPosition, { width: 220 })
-    .text(quantity.toString(), colX.qty, yPosition)
-    .text(`$${price.toFixed(2)}`, colX.price, yPosition)
-    .text(`$${total.toFixed(2)}`, colX.total, yPosition);
+    // Line
+    doc.strokeColor('#198754').lineWidth(1).moveTo(40, yPosition + 5).lineTo(555, yPosition + 5).stroke();
 
-  yPosition += 20;
-});
+    const grandTotal = order.total || 0;
+    const shipping = order.shippingCost || 0;
+const subTotalSaved = order.subtotal || 0; // ✅ Database se uthayein
+const taxSaved = order.tax || 0;
 
+    let totalY = yPosition + 20;
+    const labelX = 350;
+    const totalValueX = 480;
 
-   // --- TOTALS SECTION (FIXED TO MATCH ORDER TOTAL) ---
-// Database se direct total uthaein taake mismatch na ho
-const grandTotal = order.total || 0; 
-const shipping = order.shippingCost || 0;
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000');
+    
+    doc.text('Variation Total:', labelX, totalY);
+    doc.text(`$${variationTotal.toFixed(2)}`,totalValueX, totalY, { align: 'right', width: 70 });
+    
+    totalY += 16;
+    doc.text('Subtotal:', labelX, totalY);
+    doc.text(`$${subTotalSaved.toFixed(2)}`, totalValueX, totalY, { align: 'right', width: 70 });
+    
+    totalY += 16;
+    doc.text('VAT (5%):', labelX, totalY);
+    doc.text(`$${taxSaved.toFixed(2)}`, totalValueX, totalY, { align: 'right', width: 70 });
+    
+    totalY += 16;
+    doc.text('Shipping:', labelX, totalY);
+    doc.text(`$${shipping.toFixed(2)}`, totalValueX, totalY, { align: 'right', width: 70 });
+    
+    totalY += 20;
+    doc.fontSize(12).fillColor('#198754');
+    doc.text('Grand Total:', labelX, totalY);
+    doc.text(`$${grandTotal.toFixed(2)}`, totalValueX, totalY, { align: 'right', width: 70 });
 
-// Subtotal aur Tax ko reverse calculate karein taake breakdown sahi dikhay
-const subTotalExclTax = (grandTotal - shipping) / 1.05; 
-const tax = subTotalExclTax * 0.05;
-
-// Line draw karein table ke baad
-doc.strokeColor('#ccc').lineWidth(1).moveTo(50, yPosition + 5).lineTo(550, yPosition + 5).stroke();
-
-let currentY = yPosition + 20; 
-const labelX = 380; 
-const valueX = 480; 
-
-doc.font('Helvetica-Bold').fontSize(10).fillColor('#000');
-
-// 🔹 Variation Total (Sirf display ke liye)
-doc.font('Helvetica-Bold').fontSize(10).fillColor('#000');
-doc.text('Variation Total:', labelX, currentY);
-doc.text(`$${variationTotal.toFixed(2)}`, valueX, currentY, {
-align: 'right',
-  width: 70,
-});
-currentY += 18;
-
-
-// Subtotal (Base Amount)
-doc.text('Subtotal:', labelX, currentY);
-doc.text(`$${subTotalExclTax.toFixed(2)}`, valueX, currentY, { align: 'right', width: 70 });
-
-// VAT (5%)
-currentY += 18;
-doc.text('VAT (5%):', labelX, currentY);
-doc.text(`$${tax.toFixed(2)}`, valueX, currentY, { align: 'right', width: 70 });
-
-// Shipping
-currentY += 18;
-doc.text('Shipping:', labelX, currentY);
-doc.text(`$${shipping.toFixed(2)}`, valueX, currentY, { align: 'right', width: 70 });
-
-// Grand Total (Ab yeh $1111.19 hi dikhayega)
-currentY += 22;
-doc.fontSize(12).fillColor('#198754');
-doc.text('Grand Total:', labelX, currentY);
-doc.text(`$${grandTotal.toFixed(2)}`, valueX, currentY, { align: 'right', width: 70 });
-
-    // --- SIGNATURE ---
-    doc.moveDown(4);
+    let signatureY = totalY + 60;
+    if (signatureY > 700) {
+      doc.addPage();
+      addWatermark();
+      addHeader();
+      signatureY = 600;
+    }
+    // Signature
     doc.fillColor('#000').fontSize(10).font('Helvetica');
-    doc.text('Signature: ___________________________', 50, doc.y);
+    doc.text('Signature: ___________________________', 60, signatureY);
+const footerY = signatureY + 80;    
 
-    // ---------------- FOOTER (CENTERED PERFECTLY) ----------------
-const footerWidth = doc.page.width - 100;
-const footerX1 = 190;
-const footerX2 = 50;
-// Signature ke baad thora gap
-const footerY = doc.y + 40;
-doc.fontSize(9).fillColor('#666');
-doc.text(
-  'Thank you for shopping at Al Syed Tech Store!',
-  footerX1,
-  footerY,
-);
-doc.text(
-  'This is a computer-generated invoice and does not require a signature.',
-  footerX2,
-  footerY + 14,
-  {
-    width: footerWidth,
-    align: 'center',
-  }
-);
-doc.end();
+  doc.fontSize(8).fillColor('#666');
+doc.text(`Thank you for shopping at Al Syed Tech Store!`, 0, footerY, { align: 'center' });
+doc.text(`This is a computer-generated invoice. No signature required.`, 0, footerY + 12, { align: 'center' });
+    // Bottom line
+    // doc.strokeColor('#198754').lineWidth(2).moveTo(40, footerY + 30).lineTo(555, footerY + 30).stroke();
 
-
-
-  }catch (err) {
-    console.error('❌ Invoice generation failed:', err);
-    res.status(500).json({ message: 'Failed to generate invoice' });
+    doc.end();
+  } catch (error) {
+    console.error('Invoice generation error:', error);
+    res.status(500).json({ message: 'Error generating invoice', error: error.message });
   }
 };
 

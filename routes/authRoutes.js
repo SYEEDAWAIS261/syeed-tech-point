@@ -114,7 +114,7 @@ router.get(
       // 🚫 Check if blocked
       if (user.isBlocked) {
         return res.redirect(
-          'http://localhost:5173/login?error=blocked_account'
+          'http://localhost:3000/login?error=blocked_account'
         );
       }
 
@@ -125,17 +125,17 @@ router.get(
         { expiresIn: '7d' }
       );
 
-      res.redirect(`http://localhost:5173/login?token=${token}`);
+      res.redirect(`http://localhost:3000/login?token=${token}`);
     } catch (err) {
       console.error('Google callback error:', err);
-      res.redirect('http://localhost:5173/login?error=server_error');
+      res.redirect('http://localhost:3000/login?error=server_error');
     }
   }
 );
 
 // ❌ Google failure
 router.get('/google/failure', (req, res) => {
-  res.redirect('http://localhost:5173/login?error=account_not_found');
+  res.redirect('http://localhost:3000/login?error=account_not_found');
 });
 
 module.exports = router;
