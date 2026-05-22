@@ -36,18 +36,30 @@ require('./config/passport'); // Google strategy
 const app = express();
 const server = http.createServer(app);
 
-// Middleware
+// ✅ Advanced & Permanent CORS Fix
+const allowedOrigins = [
+  "http://localhost:3000", 
+  "http://localhost:5173", // Default Vite
+  "http://localhost:5174", // Aapka current port
+  "https://ai-ecommerce-4a2c6.web.app", // Aapka purana frontend
+  process.env.CLIENT_URL // Render par ja karke ye set karenge
+];
+
 app.use(cors({
-  origin: [
-    "http://localhost:3000", 
-    "http://localhost:5174",
-    '*', // ✅ Yeh wala port add karein jo aap use kar rahe hain
-    "https://ai-ecommerce-4a2c6.web.app",
-    process.env.FRONTEND_URL,
-    
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+  origin: function (origin, callback) {
+    // Postman ya Mobile App se agar request aaye toh origin undefined hota hai, use allow karo
+    if (!origin) return callback(null, true);
+
+    // Agar origin allowed list mein hai toh allow karo
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      callback(new Error(msg), false);
+    }
+  },
+  credentials: true, // Cookies ke liye zaroori hai
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
 }));
 app.use(express.json());
 app.set("trust proxy", 1);
